@@ -1,120 +1,157 @@
-# Quick Commands - Trading System
+# Quick Commands Reference
 
-## Daily Scanners
+## Daily Scanning
 
-### Futures (Run every 15 min)
+### Multi-Instrument Scanner (All commodities + indices)
+```bash
+python3 futures/scanners/multi_instrument_scanner.py
+```
+**Scans**: Gold, Silver, Crude, Nifty, Bank Nifty  
+**Expected**: 2-3 Grade A signals/day across all instruments  
+**Run**: Every 15 minutes during market hours
+
+### Gold/Silver Scanner (Commodities only)
 ```bash
 python3 futures/scanners/gold_silver_15min_scanner.py
 ```
-Expected: 2-3 Grade A signals per day
+**Scans**: Gold, Silver (COMEX)  
+**Expected**: 2-3 Grade A signals/day  
+**Run**: Every 15 minutes
 
-### Stocks (Run after market close)
+### Stock Scanner (NSE)
 ```bash
 python3 stocks/scanners/conservative_scanner.py
 ```
-Expected: 0-8 signals per day
+**Scans**: NSE top 60 liquid stocks  
+**Expected**: 0-8 signals/day (market dependent)  
+**Run**: After market close (3:30 PM IST)
 
 ---
 
-## Current Status Check
+## What to Expect
 
-```bash
-# Check futures signals RIGHT NOW
-python3 futures/scanners/gold_silver_15min_scanner.py
+### Futures (15-min timeframe)
+- **Trending days**: 5-8 signals
+- **Choppy days**: 0-1 signals
+- **Average**: 2-3 signals/day per instrument
+- **Entry**: Wait for 15-min candle close, then enter
 
-# Check stock signals (EOD)
-python3 stocks/scanners/conservative_scanner.py
-```
-
----
-
-## What You'll See
-
-### Grade A Signal Found
-```
-✅ SIGNAL: BUY | SMA_BOUNCE
-Entry: $81.84
-Stop: $81.64
-Target: $82.34
-Risk: $0.20 (0.25%)
-R:R: 2.49:1
-Confidence: 80% | Grade: A
-```
-
-**Action**: Place bracket order immediately
-
-### No Signal
-```
-⏸️ No Grade A signal (price: $4879.60)
-```
-
-**Action**: Check back in 15 minutes (futures) or tomorrow (stocks)
+### Stocks (Daily timeframe)
+- **Bull market**: 5-10 signals/day
+- **Consolidation**: 0-3 signals/day
+- **Bear market**: 0 signals/day
+- **Entry**: Set GTT orders after EOD scan
 
 ---
 
-## Position Sizing Quick Reference
+## Position Sizing
 
-**Capital**: ₹10L | **Risk**: 2% = ₹20K per trade
+### Futures (₹10L capital, 2% risk = ₹20K)
+**Silver example**:
+```
+Signal: BUY @ $81.84
+Stop: $81.64 (20 cents = 20 points)
+Risk: 20 × $50 = $1,000 per contract
+Contracts: ₹20K / ₹1K = 2 contracts max
+```
 
-### Futures
-- Gold Mini: 1-2 contracts max
-- Silver: 2 contracts max
+**Gold mini**:
+```
+Signal: BUY @ $2,500
+Stop: $2,480 (20 points)
+Risk: 20 × $10 = $200 per contract
+Contracts: ₹20K / ₹200 = 10 contracts max
+```
 
-### Stocks
-- Shares = ₹20,000 / (Entry - Stop)
-- Max position: 40% of capital
+### Stocks (₹10L capital, 2% risk = ₹20K)
+**Example**:
+```
+Signal: BUY @ ₹1,000
+Stop: ₹970 (₹30 risk/share)
+Shares: ₹20K / ₹30 = 666 shares
+Position: 666 × ₹1,000 = ₹6.66L (66% of capital)
+```
 
 ---
 
 ## Entry Rules
 
-### Futures (15-min)
-1. Wait for candle to close (15:00, 15:15, 15:30, etc.)
-2. Check if signal appears at close
-3. Enter at next candle open (15:01, 15:16, 15:31, etc.)
+### Futures
+1. Wait for 15-min candle to close (e.g., 15:15:00)
+2. Check scanner output immediately after close
+3. If Grade A signal appears, enter at next candle open
+4. Place bracket order (Entry + Stop + Target)
 
-### Stocks (Daily)
-1. Scan after market close (3:30 PM)
-2. Review signals
+### Stocks
+1. Run scanner after market close (3:30 PM)
+2. Review signals, select best 3-5 setups
 3. Set GTT orders for next day
+4. Orders execute at market open if conditions met
 
 ---
 
-## Bracket Order Setup
+## Grade A Standards
 
-```
-1. Entry: BUY at signal price
-2. Stop Loss: SELL at stop price (OCO with target)
-3. Target: SELL at target price (OCO with stop)
-```
+### Futures
+- ✅ Confidence: 80%+
+- ✅ R:R Ratio: 1.5:1+
+- ✅ Risk: <1.5% per trade
+- ✅ Volume: 1.2x+ average
 
-First to hit wins, other cancels automatically.
-
----
-
-## Documentation
-
-- **Detailed guide**: `futures/README.md`, `stocks/README.md`
-- **Today's summary**: `SESSION_SUMMARY_APRIL_18_2026.md`
-- **Quick start**: This file
+### Stocks (Conservative)
+- ✅ R:R Ratio: 1.5:1+
+- ✅ Risk: <6% per trade
+- ✅ RSI: 50-70
+- ✅ Momentum: Positive 5-day change
+- ✅ Position: 0.5-5% above 20 SMA
 
 ---
 
-## Git Commands
+## Data Sources
 
+### Available Sources
 ```bash
-# Check status
-git status
+# Default: yfinance (COMEX proxies)
+python3 futures/scanners/multi_instrument_scanner.py
 
-# Pull latest
-git pull origin main
+# TradingView symbols
+python3 futures/scanners/multi_instrument_scanner.py --source tradingview
 
-# Push changes
-git add .
-git commit -m "Your message"
-git push origin main
+# MCX symbols (currently using proxies, needs real MCX feed)
+python3 futures/scanners/multi_instrument_scanner.py --source mcx
 ```
 
 ---
 
-**That's it! Keep it simple.** 🎯
+## When 0 Signals Found
+
+**For futures**: Market in consolidation, check back in 15 minutes
+
+**For stocks**: Market not cooperating, scanner correctly protecting capital
+- Focus on futures instead
+- Wait 3-7 days for market stabilization
+- Don't force trades
+
+---
+
+## Automation Setup (Future)
+
+### Cron job for continuous scanning
+```bash
+# Every 15 minutes, 9 AM - 5 PM, Mon-Fri
+*/15 9-17 * * 1-5 python3 futures/scanners/multi_instrument_scanner.py >> logs/scanner.log 2>&1
+```
+
+---
+
+## Quick Reference
+
+| Scanner | Instruments | Frequency | Timeframe | Expected Signals |
+|---------|-------------|-----------|-----------|------------------|
+| Multi-instrument | Gold, Silver, Crude, Nifty, Bank Nifty | Every 15 min | 15-min | 2-3/day |
+| Gold/Silver | Gold, Silver | Every 15 min | 15-min | 2-3/day |
+| Conservative | NSE top 60 | EOD | Daily | 0-8/day |
+
+---
+
+**Last updated**: 2026-04-18
