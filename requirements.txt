@@ -9,6 +9,7 @@ pandas-ta>=0.3.14b
 # Data Fetching
 yfinance>=0.2.0
 alpha-vantage>=2.3.1
+kiteconnect>=4.0.0  # Zerodha API (requires subscription)
 
 # Visualization
 matplotlib>=3.7.0
