@@ -1,15 +1,25 @@
 # Futures Trading System
 
-Grade A signal generation for Gold and Silver futures (MCX/COMEX)
+Grade A signal generation for commodities and indices
 
 ## Quick Start
 
-**Run the scanner:**
+**All instruments (Gold, Silver, Crude, Nifty, Bank Nifty):**
+```bash
+python3 futures/scanners/multi_instrument_scanner.py
+```
+
+**Gold/Silver only:**
 ```bash
 python3 futures/scanners/gold_silver_15min_scanner.py
 ```
 
-**Expected output:** 2-3 Grade A signals per day (both instruments combined)
+**Indices only (pure price action, no volume):**
+```bash
+python3 futures/scanners/indices_price_action_scanner.py
+```
+
+**Expected output:** 2-3 Grade A signals per day per instrument
 
 ---
 
@@ -22,9 +32,16 @@ python3 futures/scanners/gold_silver_15min_scanner.py
 - ✅ **Volume**: 1.2x+ average confirmation
 
 ### Signal Patterns
+
+**Commodities (with volume):**
 1. **Breakout High** - Price breaks above 20-bar high with volume
 2. **Breakdown Low** - Price breaks below 20-bar low with volume
 3. **SMA Bounce** - Pullback to 20 SMA in uptrend
+
+**Indices (pure price action):**
+1. **Fair Value Gap (FVG)** - 3-candle imbalance
+2. **Order Block (OB)** - Strong rejection + continuation
+3. **Break of Structure (BOS)** - Swing high/low breaks
 
 ### Signal Frequency
 - **Choppy days**: 0-1 signals
@@ -94,7 +111,9 @@ Whichever hits first, other cancels automatically.
 ```
 futures/
 ├── scanners/
-│   └── gold_silver_15min_scanner.py    # Main production scanner
+│   ├── multi_instrument_scanner.py      # All instruments (recommended)
+│   ├── gold_silver_15min_scanner.py     # Commodities only
+│   └── indices_price_action_scanner.py  # Nifty/Bank Nifty (no volume)
 ├── indicators/
 │   ├── hurst_exponent.py               # Market regime detection
 │   └── volume_profile.py               # Volume-based levels
