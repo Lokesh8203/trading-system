@@ -1,0 +1,65 @@
+# Trading System .gitignore
+
+# API Keys and Secrets
+config/secrets.json
+config/api_keys.json
+.env
+*.key
+*.pem
+
+# Market Data (can be large)
+data/raw/
+data/downloaded/
+*.csv
+*.parquet
+*.h5
+*.hdf5
+
+# Backtest Results
+backtest_results/
+reports/
+*.pkl
+*.pickle
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Models (can be large)
+models/*.pkl
+models/*.h5
+models/*.pt
+*.model
+
+# Temporary files
+tmp/
+temp/
+*.tmp

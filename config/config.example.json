@@ -1,0 +1,19 @@
+{
+  "data_sources": {
+    "default": "yfinance",
+    "alpha_vantage_api_key": "YOUR_API_KEY_HERE"
+  },
+  "backtesting": {
+    "initial_capital": 100000,
+    "commission": 0.001,
+    "slippage": 0.0005
+  },
+  "signals": {
+    "lookback_period": 20,
+    "confidence_threshold": 0.6
+  },
+  "logging": {
+    "level": "INFO",
+    "log_file": "logs/trading_system.log"
+  }
+}
