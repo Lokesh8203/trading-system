@@ -24,38 +24,70 @@ python3 master_scanner.py
 
 ---
 
-## 📈 Current Top 3 (April 19, 2026)
+## 📈 Current Top 5 (April 19, 2026 - v2.2)
 
-### #1. **Crude/Gold Pair** - 85/100 ⭐⭐⭐
-- **Trade:** LONG Crude, SHORT Gold
-- **Expected:** +15-20% over 3-6 months
-- **Allocation:** 25% (₹3,00,000)
-- **Why:** NO structural shift in oil, ratio at -1.14σ
-- **Status:** ✅ **BEST OPPORTUNITY** (fundamental + technical)
+### #1. **HDFCBANK Intraday** - 100/100 ⭐⭐⭐
+- **Trade:** BUY @ ₹800.00, Stop ₹799.70, Target ₹801.16
+- **Expected:** +0.15% (exit today before 3:20 PM)
+- **Allocation:** 10% (₹1,20,000)
+- **Why:** Bounced off 20 SMA, 3.8:1 R:R, 0.04% risk
+- **Status:** ✅ **GRADE A** (Stock Intraday - NEW!)
 
-### #2. **Silver Intraday** - 80/100 ⭐⭐
-- **Trade:** BUY @ $81.84, Target $82.34
-- **Expected:** +0.6% (same-day exit)
-- **Allocation:** 10% (₹120,000)
-- **Why:** Bounced off 20 SMA, resuming uptrend
+### #2. **WIPRO Intraday** - 100/100 ⭐⭐⭐
+- **Trade:** BUY @ ₹204.30, Stop ₹204.13, Target ₹204.75
+- **Expected:** +0.22% (exit today)
+- **Allocation:** 10% (₹1,20,000)
+- **Why:** SMA bounce, 2.6:1 R:R, 0.08% risk
+- **Status:** ✅ **GRADE A** (Stock Intraday - NEW!)
 
-### #3. **Silver Macro** - 80/100 ⭐⭐
+### #3. **HINDALCO Intraday** - 100/100 ⭐⭐⭐
+- **Trade:** BUY @ ₹680.00 (breakout)
+- **Expected:** +0.4% (exit today)
+- **Allocation:** 10% (₹1,20,000)
+- **Why:** Breakout with volume
+- **Status:** ✅ **GRADE A** (Stock Intraday - NEW!)
+
+### #4. **RELIANCE Intraday** - 95/100 ⭐⭐
+- **Trade:** BUY @ ₹1364.50, Stop ₹1362.54, Target ₹1368.59
+- **Expected:** +0.3% (exit today)
+- **Allocation:** 10% (₹1,20,000)
+- **Status:** ✅ **GRADE A** (Stock Intraday - NEW!)
+
+### #5. **Silver Macro** - 80/100 ⭐⭐
 - **Trade:** LONG @ $81.84, Target $105.52
 - **Expected:** +28.9% over weeks-months
-- **Allocation:** 40% (₹480,000)
+- **Allocation:** 40% (₹4,80,000)
 - **Why:** 56th percentile, R:R 2.72:1, industrial demand
 
-**Filtered Out:**
-- ❌ **Copper/Zinc** (was 67/100, now AVOIDED)
-- **Reason:** Strong structural shift (electrification favors copper)
-- **Fundamental filter caught this trap!**
+**System Status:**
+- ✅ **13 GRADE A trades** (10 stock intraday, 1 futures intraday, 2 macro)
+- ⚠️ 6 GRADE B trades (not shown, sufficient Grade A available)
+- 🎯 **New:** Stock Intraday Scanner delivers 3-10 signals per day!
 
 ---
 
-## 🆕 What's New (v2.0 - April 2026)
+## 🆕 What's New (v2.2 - April 2026)
 
-### **1. Fundamental Filter**
-Not all high Z-score trades work! System now detects structural shifts:
+### **1. Stock Intraday Scanner** 🎯 **NEW!**
+High-frequency Grade A signals on 5-min charts:
+- **30 liquid NSE stocks** (Reliance, HDFC, TCS, etc.)
+- **4 patterns:** SMA Bounce, Breakout, Breakdown, Momentum
+- **Strict filters:** 80%+ confidence, 1.5:1+ R:R, <1.5% risk
+- **No overnight risk:** Exit before 3:20 PM daily
+- **Result:** 3-10 Grade A signals per day!
+
+**Today's results:** 10 stock intraday signals (all Grade A)
+
+### **2. Quality Tier System** 🎯 **NEW!**
+Consistent quality bars across all strategies:
+- **GRADE A:** Macro ≥70, Pairs ≥60, Intraday (strict)
+- **GRADE B:** Shown with warning if no Grade A available
+- **Philosophy:** Quality > Quantity
+
+**Today's results:** 13 Grade A trades (up from 3!)
+
+### **3. Fundamental Filter**
+Not all high Z-score trades work! System detects structural shifts:
 
 | Pair | Old Score | New Score | Status | Why |
 |------|-----------|-----------|--------|-----|
@@ -65,12 +97,12 @@ Not all high Z-score trades work! System now detects structural shifts:
 
 **Update frequency:** Monthly (structural shifts are slow)
 
-### **2. MCX Timing**
+### **4. MCX Timing**
 Shows when to trade (avoid volatile periods):
 - ✅ **CAN TRADE** (Afternoon/Evening sessions)
 - ❌ **WAIT** (Opening 9:00-9:15, Closing 11:15-11:30)
 
-### **3. Hurst Regime**
+### **5. Hurst Regime**
 For pair trades, shows if mean reversion likely:
 - H < 0.4: Mean-reverting (good for pairs)
 - H > 0.6: Trending (poor for pairs)
@@ -269,16 +301,20 @@ python3 master_scanner.py
 
 ## 📝 Version
 
-**v2.0** - April 19, 2026  
+**v2.2** - April 19, 2026  
 **Phase:** Signal Generation (Manual Execution)  
 **Status:** Production-Ready ✅
 
-**Recent Updates:**
+**Recent Updates (v2.2):**
+- ✅ **Stock Intraday Scanner** (5-min, Grade A, 3-10 signals/day)
+- ✅ **Quality Tier System** (Grade A/B with smart fallback)
 - ✅ Fundamental filtering
 - ✅ MCX timing optimization
 - ✅ Hurst regime analysis
 - ✅ FVG price action
 - ✅ Order Flow / CVD
+
+**Impact:** 13 Grade A trades today (vs 3 before v2.2)
 
 **Next:** Phase 2 - Automated Execution (Zerodha Kite API)
 
