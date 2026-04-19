@@ -194,9 +194,51 @@ class MasterScanner:
         except Exception as e:
             print(f"   ❌ Error scanning intraday: {str(e)}")
 
+    def scan_intraday_stocks(self):
+        """Scan stock intraday Grade A signals"""
+        print("📊 Scanning stock intraday...")
+
+        try:
+            from stocks.scanners.intraday_scanner import StockIntradayScanner
+
+            scanner = StockIntradayScanner()
+            results = scanner.scan_all()
+
+            for name, signal in results.items():
+                if signal:  # Grade A signal found
+                    self.opportunities.append(UnifiedOpportunity(
+                        rank=0,
+                        name=f"{name} {signal.signal_type} (Stock Intraday)",
+                        category="INTRADAY",
+                        instrument=name,
+                        direction=signal.signal_type,
+                        favorability_score=signal.confidence,
+                        entry_price=signal.entry_price,
+                        stop_loss=signal.stop_loss,
+                        target_1=signal.target,
+                        risk_pct=signal.risk_pct,
+                        rr_ratio=signal.rr_ratio,
+                        recommended_allocation_pct=10,  # Fixed 10% for intraday
+                        expected_return=signal.rr_ratio * signal.risk_pct,
+                        best_case=signal.rr_ratio * signal.risk_pct * 1.5,
+                        worst_case=-signal.risk_pct,
+                        time_horizon="INTRADAY",
+                        entry_timing="NOW (5-min candle close)",
+                        quality_grade="A",  # Stock intraday is always Grade A
+                        disruption_factors=["Intraday volatility", "News events"],
+                        gap_risk=0,  # Intraday, no overnight hold
+                        reasoning=signal.reasoning,
+                        confidence=signal.confidence
+                    ))
+
+            print(f"   Found {len([o for o in self.opportunities if o.category == 'INTRADAY' and 'Stock' in o.name])} stock intraday signals")
+
+        except Exception as e:
+            print(f"   ❌ Error scanning stock intraday: {str(e)}")
+
     def scan_stocks(self):
-        """Scan stock opportunities"""
-        print("📊 Scanning stocks...")
+        """Scan stock swing opportunities"""
+        print("📊 Scanning stock swings...")
 
         try:
             from stocks.scanners.conservative_scanner import ConservativeScanner
@@ -526,6 +568,7 @@ def main():
     # Scan all sources
     scanner.scan_macro_futures()
     scanner.scan_intraday_futures()
+    scanner.scan_intraday_stocks()  # NEW: Stock intraday Grade A signals
     scanner.scan_stocks()
     scanner.scan_pair_trades()
 
