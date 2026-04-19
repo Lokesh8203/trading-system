@@ -195,14 +195,14 @@ class MultiInstrumentScanner:
         bar = data.iloc[-1]
         prev_bars = data.iloc[-21:-1]
 
-        price = float(bar['Close'])
-        high = float(bar['High'])
-        low = float(bar['Low'])
+        price = float(bar['Close'].iloc[0]) if hasattr(bar['Close'], 'iloc') else float(bar['Close'])
+        high = float(bar['High'].iloc[0]) if hasattr(bar['High'], 'iloc') else float(bar['High'])
+        low = float(bar['Low'].iloc[0]) if hasattr(bar['Low'], 'iloc') else float(bar['Low'])
 
-        sma_20 = float(bar['SMA_20'])
-        atr = float(bar['ATR'])
-        volume = float(bar['Volume'])
-        avg_vol = float(bar['Vol_SMA'])
+        sma_20 = float(bar['SMA_20'].iloc[0]) if hasattr(bar['SMA_20'], 'iloc') else float(bar['SMA_20'])
+        atr = float(bar['ATR'].iloc[0]) if hasattr(bar['ATR'], 'iloc') else float(bar['ATR'])
+        volume = float(bar['Volume'].iloc[0]) if hasattr(bar['Volume'], 'iloc') else float(bar['Volume'])
+        avg_vol = float(bar['Vol_SMA'].iloc[0]) if hasattr(bar['Vol_SMA'], 'iloc') else float(bar['Vol_SMA'])
 
         timestamp = bar.name
 

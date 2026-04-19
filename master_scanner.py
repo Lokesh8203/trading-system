@@ -7,6 +7,14 @@ Single command to see ALL opportunities across:
 3. Stocks swing trades (conservative)
 4. Pair trades (risk reduction)
 
+Quality Thresholds (v2.1):
+- MACRO: ≥70 (GRADE A), 50-69 (GRADE B - shown with warning if no Grade A)
+- PAIRS: ≥60 (GRADE A), 40-59 (GRADE B - shown with warning if no Grade A)
+- INTRADAY: Grade A only (strict filtering already applied)
+- STOCKS: Conservative only (strict filtering already applied)
+
+Philosophy: Quality > Quantity. If no Grade A trades, system shows warning.
+
 Output: Top 15 ranked opportunities with:
 - Time horizon
 - Entry/Stop/Target
@@ -20,11 +28,16 @@ Usage:
 
 Author: Trading System
 Date: 2026-04-19
+Version: 2.1 (Quality-first)
 """
 
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))
+
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings('ignore', message='.*urllib3.*')
 
 import pandas as pd
 import numpy as np
@@ -68,6 +81,9 @@ class UnifiedOpportunity:
     time_horizon: str  # INTRADAY / DAYS / WEEKS / MONTHS
     entry_timing: str  # NOW / WAIT / SCALE
 
+    # Quality (with default - must come after non-defaults)
+    quality_grade: str = "A"  # A (primary) or B (fallback)
+
     # Optional fields with defaults
     target_2: Optional[float] = None
     disruption_factors: List[str] = field(default_factory=list)
@@ -102,7 +118,10 @@ class MasterScanner:
             results = scanner.scan_all_opportunities()
 
             for result in results:
-                if result.favorability_score >= 50:  # Only include 50+
+                if result.favorability_score >= 50:  # Include 50+ for now, will grade later
+                    # Determine quality grade
+                    grade = "A" if result.favorability_score >= 70 else "B"
+
                     self.opportunities.append(UnifiedOpportunity(
                         rank=0,  # Will assign later
                         name=f"{result.instrument} {result.direction}",
@@ -110,6 +129,7 @@ class MasterScanner:
                         instrument=result.instrument,
                         direction=result.direction,
                         favorability_score=result.favorability_score,
+                        quality_grade=grade,
                         entry_price=result.current_price,
                         stop_loss=result.current_price * (1 - result.max_risk_pct/100) if result.direction == 'LONG' else result.current_price * (1 + result.max_risk_pct/100),
                         target_1=result.current_price * (1 + result.avg_case_return/100) if result.direction == 'LONG' else result.current_price * (1 - result.avg_case_return/100),
@@ -143,7 +163,7 @@ class MasterScanner:
             results = scanner.scan_all()
 
             for name, signal in results.items():
-                if signal:  # Grade A signal found
+                if signal:  # Grade A signal found (already filtered)
                     self.opportunities.append(UnifiedOpportunity(
                         rank=0,
                         name=f"{name} {signal.signal_type} (Intraday)",
@@ -151,6 +171,7 @@ class MasterScanner:
                         instrument=name,
                         direction=signal.signal_type,
                         favorability_score=signal.confidence,
+                        quality_grade="A",  # Intraday is always Grade A
                         entry_price=signal.entry_price,
                         stop_loss=signal.stop_loss,
                         target_1=signal.target,
@@ -198,6 +219,7 @@ class MasterScanner:
                         instrument=symbol,
                         direction="LONG",
                         favorability_score=70,  # Conservative = moderate score
+                        quality_grade="A",  # Stocks are always Grade A (strict filters)
                         entry_price=setup['entry'],
                         stop_loss=setup['stop'],
                         target_1=setup['target_1'],
@@ -243,12 +265,15 @@ class MasterScanner:
                     expected_return=pair.expected_return
                 )
 
-                # Only show if fundamentals support it
+                # Only show if fundamentals support it (keep 40+ for now, will grade later)
                 if filter_result['should_show'] and filter_result['adjusted_score'] >= 40:
                     # Add warning to disruption factors if fundamentals weak
                     disruption_list = [pair.reasoning]
                     if filter_result['warning']:
                         disruption_list.insert(0, filter_result['warning'])
+
+                    # Determine quality grade
+                    grade = "A" if filter_result['adjusted_score'] >= 60 else "B"
 
                     self.opportunities.append(UnifiedOpportunity(
                         rank=0,
@@ -257,6 +282,7 @@ class MasterScanner:
                         instrument=pair.name,
                         direction=pair.direction,
                         favorability_score=filter_result['adjusted_score'],  # Use adjusted score
+                        quality_grade=grade,
                         entry_price=pair.entry,
                         stop_loss=pair.stop,
                         target_1=pair.target,
@@ -337,7 +363,11 @@ class MasterScanner:
             opp.rank = i
 
     def display_dashboard(self):
-        """Display master dashboard"""
+        """Display master dashboard with quality tiering"""
+
+        # Count by quality grade
+        grade_a = [o for o in self.opportunities if o.quality_grade == "A"]
+        grade_b = [o for o in self.opportunities if o.quality_grade == "B"]
 
         print("\n" + "="*120)
         print("MASTER TRADING DASHBOARD - TOP OPPORTUNITIES")
@@ -345,14 +375,43 @@ class MasterScanner:
         print(f"Scan Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"Capital: ₹{self.capital:,.0f}")
         print(f"Total Opportunities: {len(self.opportunities)}")
+        print(f"  ✅ GRADE A (Primary): {len(grade_a)} trades")
+        print(f"  ⚠️  GRADE B (Fallback): {len(grade_b)} trades")
         print()
 
-        # Display top 15
-        top_15 = self.opportunities[:15]
+        # Quality warning if no Grade A
+        if len(grade_a) == 0:
+            print("="*120)
+            print("⚠️  WARNING: NO GRADE A TRADES FOUND")
+            print("="*120)
+            print("Market conditions not ideal. Consider:")
+            print("  1. Wait for better setup (recommended)")
+            print("  2. Trade Grade B signals with caution (reduced size)")
+            print("  3. Focus on cash preservation")
+            print()
 
-        for opp in top_15:
+        # Determine what to show
+        if len(grade_a) >= 10:
+            # Plenty of Grade A, show only those
+            to_display = grade_a[:15]
+            print("📊 Showing: GRADE A trades only (sufficient quality available)")
+        elif len(grade_a) > 0:
+            # Some Grade A, fill rest with Grade B
+            to_display = grade_a + grade_b[:max(0, 15 - len(grade_a))]
+            print(f"📊 Showing: {len(grade_a)} GRADE A + {min(len(grade_b), 15-len(grade_a))} GRADE B trades")
+        else:
+            # No Grade A, show top Grade B with warning
+            to_display = grade_b[:15]
+            print("📊 Showing: GRADE B trades only (NO GRADE A AVAILABLE - CAUTION!)")
+
+        print()
+
+        for opp in to_display:
+            # Quality indicator
+            quality_indicator = "✅ GRADE A" if opp.quality_grade == "A" else "⚠️  GRADE B - CAUTION"
+
             print(f"\n{'='*120}")
-            print(f"#{opp.rank}. {opp.name} - Score: {opp.favorability_score}/100 [{opp.category}]")
+            print(f"#{opp.rank}. {opp.name} - Score: {opp.favorability_score}/100 [{opp.category}] {quality_indicator}")
             print(f"{'='*120}")
 
             # Trade setup

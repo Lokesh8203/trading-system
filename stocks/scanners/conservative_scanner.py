@@ -105,7 +105,8 @@ class ConservativeScanner:
             loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
             rs = gain / loss
             rsi = 100 - (100 / (1 + rs))
-            return float(rsi.iloc[-1])
+            rsi_val = rsi.iloc[-1]
+            return float(rsi_val)
         except:
             return 50
 
@@ -117,7 +118,7 @@ class ConservativeScanner:
 
         try:
             current = data.iloc[-1]
-            price = float(current['Close'])
+            price = float(current['Close'].iloc[0]) if hasattr(current['Close'], 'iloc') else float(current['Close'])
 
             if price < 50:
                 return None
@@ -127,7 +128,7 @@ class ConservativeScanner:
 
             rsi = self.calculate_rsi(data['Close'])
 
-            price_5d_ago = float(data['Close'].iloc[-5]) if len(data) >= 5 else price
+            price_5d_ago = float(data['Close'].iloc[-5])if len(data) >= 5 else price
             change_5d = ((price - price_5d_ago) / price_5d_ago) * 100
 
             dist_20_pct = ((price - sma_20_val) / sma_20_val) * 100
