@@ -388,14 +388,68 @@ Worst Case: -17.7%       ← Hit stop loss
 
 **Working:** ✅ All 4 scanners integrated  
 **Output:** Top 15 opportunities ranked  
-**Updated:** Real-time (run anytime)
+**Updated:** Real-time (run anytime)  
+**NEW:** ✅ MCX timing checks (when to trade)  
+**NEW:** ✅ Hurst exponent analysis for pairs
 
 **Current market (April 19):**
 - #1: Silver (both intraday and macro)
-- #2: Gold/Silver pair (ratio at -2.26σ)
-- #3: Nifty macro (moderate, high gap risk)
+- #2: Copper/Zinc pair (score 67, Z: 2.50σ)
+- #3: Gold/Silver pair (ratio at -2.38σ)
 
-**Expected portfolio return:** +12.3% (weighted across top 5)
+**Expected portfolio return:** +27.7% (weighted across top 5)
+
+---
+
+## What's New (April 19)
+
+### 1. MCX Trading Timing Integration
+
+**Problem Solved:** Avoid volatile first/last 15 minutes on MCX
+
+**Now Shows:**
+```
+✅ TRADING STATUS: CAN TRADE
+   Current Window: Afternoon Session (HIGH priority)
+
+❌ TRADING STATUS: Opening volatility
+   Wait Until: 09:15 AM
+```
+
+**Scanner Schedule:**
+- 9:30 AM: Morning Session (MEDIUM)
+- 2:00 PM: Afternoon Session (HIGH) - London open
+- 7:00 PM: Evening Session (HIGHEST) - US open
+
+**Avoid:**
+- 9:00-9:15 AM (opening chaos)
+- 11:15-11:30 PM (closing rush)
+
+### 2. Hurst Exponent for Pair Trades
+
+**Problem Solved:** Sharpen pair trade signals with regime detection
+
+**Hurst Analysis:**
+- H > 0.6: TRENDING (breakouts continue)
+- H = 0.5: RANDOM WALK (unpredictable)
+- H < 0.4: MEAN-REVERTING (extremes reverse)
+
+**Scoring Impact:**
+- Both legs mean-reverting: +15 pts bonus
+- One leg mean-reverting: +10 pts
+- Both legs trending: -10 pts penalty
+
+**Now Shows:**
+```
+📊 HURST REGIME ANALYSIS:
+COPPER Hurst: 0.521 (CHOPPY)
+ZINC Hurst: 0.540 (CHOPPY)
+Signal: NEUTRAL - Choppy regimes
+```
+
+**Example Impact:**
+- Copper/Zinc ratio: 52 → 67/100 (improved!)
+- Both legs choppy but z-score extreme (2.50σ)
 
 ---
 

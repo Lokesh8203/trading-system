@@ -32,6 +32,10 @@ from datetime import datetime
 from typing import List, Dict, Optional
 from dataclasses import dataclass, field
 
+# Import MCX timing schedule and fundamental filter
+from futures.macro.mcx_trading_timing_guide import MCXTradingSchedule
+from futures.macro.fundamental_filter import FundamentalFilter
+
 
 @dataclass
 class UnifiedOpportunity:
@@ -71,6 +75,12 @@ class UnifiedOpportunity:
     reasoning: str = ""
     confidence: int = 0  # For intraday signals
 
+    # MCX timing
+    can_trade_now: bool = True
+    trading_status: str = ""
+    optimal_window: str = ""
+    wait_until: Optional[str] = None
+
 
 class MasterScanner:
     """Aggregate all trading opportunities"""
@@ -78,6 +88,8 @@ class MasterScanner:
     def __init__(self, capital: float = 1200000):
         self.capital = capital
         self.opportunities = []
+        self.mcx_schedule = MCXTradingSchedule()
+        self.fundamental_filter = FundamentalFilter()
 
     def scan_macro_futures(self):
         """Scan macro opportunities"""
@@ -213,19 +225,30 @@ class MasterScanner:
             print(f"   ❌ Error scanning stocks: {str(e)}")
 
     def scan_pair_trades(self):
-        """Scan pair trading opportunities"""
-        print("📊 Scanning pair trades...")
+        """Scan ALL pair trading opportunities with fundamental filter"""
+        print("📊 Scanning all MCX pair trades...")
 
         try:
-            from futures.macro.pair_trade_analyzer import PairTradeAnalyzer
+            from futures.macro.all_mcx_pairs_analyzer import AllMCXPairsAnalyzer
 
-            analyzer = PairTradeAnalyzer()
+            analyzer = AllMCXPairsAnalyzer()
             results = analyzer.scan_all_pairs()
 
             for pair in results:
-                if pair.direction != "WAIT":
-                    # Score based on z-score and reversion probability
-                    score = min(100, int(50 + abs(pair.z_score) * 10 + pair.mean_reversion_probability / 2))
+                # Apply fundamental filter
+                filter_result = self.fundamental_filter.filter_opportunity(
+                    pair_name=pair.name,
+                    original_score=pair.score,
+                    original_allocation=15,  # Default pair allocation
+                    expected_return=pair.expected_return
+                )
+
+                # Only show if fundamentals support it
+                if filter_result['should_show'] and filter_result['adjusted_score'] >= 40:
+                    # Add warning to disruption factors if fundamentals weak
+                    disruption_list = [pair.reasoning]
+                    if filter_result['warning']:
+                        disruption_list.insert(0, filter_result['warning'])
 
                     self.opportunities.append(UnifiedOpportunity(
                         rank=0,
@@ -233,27 +256,66 @@ class MasterScanner:
                         category="PAIR",
                         instrument=pair.name,
                         direction=pair.direction,
-                        favorability_score=score,
-                        entry_price=pair.current_ratio,
-                        stop_loss=pair.stop_ratio,
-                        target_1=pair.target_ratio,
-                        risk_pct=abs(pair.entry_ratio - pair.stop_ratio) / pair.entry_ratio * 100,
-                        rr_ratio=abs(pair.target_ratio - pair.entry_ratio) / abs(pair.entry_ratio - pair.stop_ratio) if abs(pair.entry_ratio - pair.stop_ratio) > 0 else 0,
-                        recommended_allocation_pct=20,  # 20% for pairs
-                        expected_return=pair.expected_return,
-                        best_case=pair.best_case,
-                        worst_case=pair.worst_case,
+                        favorability_score=filter_result['adjusted_score'],  # Use adjusted score
+                        entry_price=pair.entry,
+                        stop_loss=pair.stop,
+                        target_1=pair.target,
+                        risk_pct=abs(pair.entry - pair.stop) / pair.entry * 100 if pair.entry > 0 else 0,
+                        rr_ratio=abs(pair.target - pair.entry) / abs(pair.entry - pair.stop) if abs(pair.entry - pair.stop) > 0 else 0,
+                        recommended_allocation_pct=filter_result['adjusted_allocation'],  # Use filtered allocation
+                        expected_return=filter_result['adjusted_return'],  # Use adjusted return
+                        best_case=pair.expected_return * 1.5,
+                        worst_case=-abs(pair.stop - pair.entry) / pair.entry * 100 if pair.entry > 0 else 0,
                         time_horizon="WEEKS-MONTHS",
                         entry_timing="NOW",
-                        disruption_factors=pair.disruption_factors,
+                        disruption_factors=disruption_list,
                         gap_risk=30,  # Lower for pairs (market neutral)
-                        reasoning=pair.reasoning
+                        reasoning=f"{pair.trade_description} | Z-score: {pair.z_score:.2f}σ | Reversion prob: {pair.probability:.0f}%"
                     ))
 
-            print(f"   Found {len([o for o in self.opportunities if o.category == 'PAIR'])} pair opportunities")
+            print(f"   Found {len([o for o in self.opportunities if o.category == 'PAIR'])} pair opportunities (50+ score)")
 
         except Exception as e:
             print(f"   ❌ Error scanning pairs: {str(e)}")
+
+    def check_mcx_timing(self):
+        """Check MCX timing for all opportunities"""
+        mcx_instruments = ['GOLD', 'SILVER', 'CRUDE', 'COPPER', 'NATGAS']
+
+        for opp in self.opportunities:
+            # Check if MCX instrument
+            is_mcx = any(instr in opp.instrument.upper() for instr in mcx_instruments)
+
+            if is_mcx:
+                # Get instrument name (e.g., GOLD from GOLD LONG)
+                instrument = None
+                for instr in mcx_instruments:
+                    if instr in opp.instrument.upper():
+                        instrument = instr
+                        break
+
+                if instrument:
+                    status = self.mcx_schedule.can_trade_now(instrument)
+                    opp.can_trade_now = status['can_trade']
+                    opp.trading_status = status.get('reason', 'Market open') if not status['can_trade'] else 'CAN TRADE'
+
+                    if status['can_trade']:
+                        opp.optimal_window = status.get('window', 'Open')
+                        opp.wait_until = None
+                    else:
+                        opp.optimal_window = "N/A"
+                        if 'wait_until' in status:
+                            opp.wait_until = status['wait_until'].strftime('%I:%M %p')
+                        elif 'next_open' in status:
+                            opp.wait_until = status['next_open'].strftime('%I:%M %p')
+                        else:
+                            opp.wait_until = "Tomorrow"
+            else:
+                # Not MCX, always tradeable (stocks/indices via GTT)
+                opp.can_trade_now = True
+                opp.trading_status = "GTT/Market Order"
+                opp.optimal_window = "N/A"
+                opp.wait_until = None
 
     def rank_opportunities(self):
         """Rank all opportunities by composite score"""
@@ -321,6 +383,17 @@ class MasterScanner:
             print(f"   Time Horizon: {opp.time_horizon}")
             print(f"   Entry Timing: {opp.entry_timing}")
             print(f"   Gap Risk: {opp.gap_risk}/100")
+
+            # MCX timing status
+            if opp.can_trade_now:
+                print(f"\n✅ TRADING STATUS: {opp.trading_status}")
+                if opp.optimal_window and opp.optimal_window != "N/A":
+                    print(f"   Current Window: {opp.optimal_window}")
+            else:
+                print(f"\n❌ TRADING STATUS: {opp.trading_status}")
+                if opp.wait_until:
+                    print(f"   Wait Until: {opp.wait_until}")
+                print(f"   ⚠️  AVOID first 15 min (9:00-9:15) and last 15 min (11:15-11:30)")
 
             # Disruption factors
             if opp.disruption_factors:
@@ -397,12 +470,24 @@ def main():
     scanner.scan_stocks()
     scanner.scan_pair_trades()
 
+    # Check MCX timing
+    scanner.check_mcx_timing()
+
     # Rank and display
     scanner.rank_opportunities()
     scanner.display_dashboard()
 
+    # Display next scanner run time
+    next_scan = scanner.mcx_schedule.next_scanner_run()
+    print("\n" + "="*120)
+    print("📊 NEXT SCANNER RUN:")
+    print(f"   Time: {next_scan['time'].strftime('%I:%M %p IST')}")
+    print(f"   Session: {next_scan['session']}")
+    print(f"   Action: {next_scan['action']}")
+
     print("\n" + "="*120)
     print("Scan complete! Run this anytime to see updated opportunities.")
+    print("Optimal MCX windows: 9:30-11:30 AM | 2:00-4:00 PM (HIGH) | 7:00-10:00 PM (HIGHEST)")
     print("="*120)
     print()
 
