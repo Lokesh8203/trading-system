@@ -37,6 +37,10 @@ from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from scipy import stats
 
+# Import technical filters
+from futures.indicators.price_action_filter import PriceActionFilter
+from futures.indicators.fibonacci_filter import FibonacciFilter
+
 
 @dataclass
 class FavorabilityScore:
@@ -365,6 +369,16 @@ class FavorabilityScanner:
         else:
             war = None
 
+        # NEW: Technical filters
+        price_action_filter = PriceActionFilter()
+        fib_filter = FibonacciFilter()
+
+        # Check price action quality
+        price_action = price_action_filter.analyze(data, lookback=15)
+
+        # Check Fibonacci levels
+        fib_analysis = fib_filter.analyze(data, lookback=60)
+
         # SCORING
         scores = {}
 
@@ -455,8 +469,27 @@ class FavorabilityScanner:
         else:
             scores['catalyst'] = 5  # No specific catalyst
 
-        # TOTAL SCORE
-        total_score = sum(scores.values())
+        # NEW: Apply technical filter penalties
+        penalties = {}
+
+        # Price action penalty
+        if not price_action.is_clean:
+            penalties['price_action'] = 30  # Heavy penalty for bad price action
+        elif price_action.score < 60:
+            penalties['price_action'] = 10  # Light penalty
+
+        # Fibonacci penalty
+        if direction == 'LONG' and fib_analysis.at_resistance:
+            penalties['fibonacci'] = 40  # HEAVY penalty for longing at resistance
+        elif direction == 'SHORT' and fib_analysis.at_support:
+            penalties['fibonacci'] = 40  # HEAVY penalty for shorting at support
+        elif fib_analysis.score < 70:
+            penalties['fibonacci'] = 10  # Light penalty for being near Fib levels
+
+        # TOTAL SCORE (with penalties)
+        raw_score = sum(scores.values())
+        total_penalty = sum(penalties.values())
+        total_score = max(0, raw_score - total_penalty)
 
         # RECOMMENDATION
         if total_score >= 75:
@@ -501,6 +534,12 @@ class FavorabilityScanner:
         reasoning_parts.append(f"Position: {percentile:.0f}th percentile (52-week)")
         reasoning_parts.append(f"Volatility: {vol['regime']} ({vol['percentile']:.0f}th percentile)")
         reasoning_parts.append(f"R:R: {rr_ratio:.2f}:1")
+
+        # Add filter warnings
+        if price_action.warning:
+            reasoning_parts.append(f"⚠️ Price Action: {price_action.warning}")
+        if fib_analysis.warning:
+            reasoning_parts.append(f"⚠️ Fibonacci: {fib_analysis.warning}")
 
         if war:
             reasoning_parts.append(f"War Premium: {war['war_phase']}")
