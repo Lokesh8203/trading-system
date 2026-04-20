@@ -106,12 +106,9 @@ class MultiTimeframeScorer:
         ) if daily_data is not None else 0
 
         # Calculate trade quality (for ranking)
-        if asset_type == "STOCK":
-            # Stocks: Weekly 50% + Daily 40%
-            trade_quality = int(weekly_score * 0.5 + daily_score * 0.4)
-        else:
-            # Futures: Weekly 40% + Daily 35%
-            trade_quality = int(weekly_score * 0.4 + daily_score * 0.35)
+        # ALL instruments: Weekly = Daily (finding S/R levels over time)
+        # Longer timeframe = more respected levels
+        trade_quality = int(weekly_score * 0.5 + daily_score * 0.5)
 
         print(f"\n   → Trade Quality Score: {trade_quality}/100")
         print(f"      (This determines ranking in scanner)")
@@ -132,12 +129,13 @@ class MultiTimeframeScorer:
 
         # Calculate entry timing
         if asset_type == "STOCK":
-            # Stocks: Hourly only (10% weight but we use full score for timing)
+            # Stocks: Hourly/2-hourly (but less critical - no leverage)
             entry_timing = hourly_score
         else:
-            # Futures: Hourly 60% + 15min 40% (among lower TFs)
+            # Futures/Index: 15-min is CRITICAL for SL (leverage!)
+            # 15-min 70% + Hourly 30% (15-min dominant)
             if m15_score is not None:
-                entry_timing = int(hourly_score * 0.6 + m15_score * 0.4)
+                entry_timing = int(m15_score * 0.7 + hourly_score * 0.3)
             else:
                 entry_timing = hourly_score
 
@@ -234,6 +232,10 @@ class MultiTimeframeScorer:
         """
         Determine entry status and suggestion
 
+        Key difference:
+        - Stocks: Entry timing less critical (no leverage, can be relaxed)
+        - Futures: Entry timing CRITICAL (leverage = need precise SL on 15-min)
+
         Returns: (status, suggestion)
         """
 
@@ -241,12 +243,20 @@ class MultiTimeframeScorer:
         if trade_quality < 40:
             return ("❌ SKIP", "Higher timeframe setup broken - skip this trade entirely")
 
-        # If trade quality moderate, be more conservative on entry
+        # If trade quality moderate (40-59)
         if trade_quality < 60:
             if entry_timing >= 70:
-                return ("⚠️ ENTER WITH CAUTION", "Trade quality moderate, but entry clean")
+                return ("⚠️ ENTER WITH CAUTION", "Trade quality moderate, but entry clean - reduce size")
             else:
-                return ("⏸️ WAIT", "Trade quality moderate + entry not ready - skip or wait for both to align")
+                if asset_type == "STOCK":
+                    # Stocks: Can still enter if not too choppy (no leverage)
+                    if entry_timing >= 40:
+                        return ("⚠️ ENTER WITH CAUTION", "Trade quality moderate, entry acceptable - reduce size")
+                    else:
+                        return ("⏸️ WAIT", "Both trade quality and entry timing weak - wait for one to improve")
+                else:
+                    # Futures: Need both to be decent (leverage risk)
+                    return ("⏸️ WAIT", "Trade quality moderate + entry not ready - wait for both to align")
 
         # Trade quality is good (60+), now check entry timing
         if entry_timing >= 70:
@@ -255,18 +265,28 @@ class MultiTimeframeScorer:
         elif entry_timing >= 50:
             # Entry timing acceptable
             if asset_type == "STOCK":
-                return ("⏸️ WAIT (OPTIONAL)", f"Hourly score {hourly}/100 - can enter cautiously or wait for hourly to strengthen")
+                # Stocks: Can enter even with OK timing (no leverage)
+                return ("✅ ENTER NOW (or wait)", f"Trade quality good, entry acceptable - can enter or wait for stronger hourly")
             else:
-                return ("⏸️ WAIT (OPTIONAL)", f"Entry timing {entry_timing}/100 - watch 15-min for cleaner setup")
+                # Futures: Prefer cleaner entry (leverage)
+                return ("⏸️ WAIT PREFERRED", f"Trade quality good but 15-min not ideal ({m15}/100) - wait for cleaner entry")
 
         else:
-            # Entry timing poor
-            if hourly < 50:
-                return ("⏸️ WAIT - Hourly Choppy", "Wait for hourly consolidation to break (cleaner price action)")
-            elif m15 is not None and m15 < 50:
-                return ("⏸️ WAIT - 15min Choppy", "Wait for 15-min to confirm direction (watch for breakout)")
+            # Entry timing poor (<50)
+            if asset_type == "STOCK":
+                # Stocks: Entry timing matters less
+                if entry_timing >= 30:
+                    return ("⚠️ ENTER CAUTIOUSLY", f"Trade quality good, entry choppy - acceptable for stocks (no leverage)")
+                else:
+                    return ("⏸️ WAIT", f"Entry very choppy (hourly {hourly}/100) - wait for consolidation to break")
             else:
-                return ("⏸️ WAIT", "Wait for lower timeframe to align with higher timeframe trend")
+                # Futures: Entry timing CRITICAL
+                if m15 is not None and m15 < 50:
+                    return ("⏸️ MUST WAIT", f"15-min choppy ({m15}/100) - leverage requires precise entry, watch for breakout")
+                elif hourly < 50:
+                    return ("⏸️ MUST WAIT", f"Hourly choppy ({hourly}/100) - wait for clearer direction")
+                else:
+                    return ("⏸️ WAIT", "Entry timing not aligned with higher timeframe trend")
 
     def _get_analysis_summary(self, data: Optional[pd.DataFrame], direction: str, tf_name: str) -> str:
         """Get brief analysis summary"""
