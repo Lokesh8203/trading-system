@@ -48,6 +48,7 @@ from dataclasses import dataclass, field
 # Import MCX timing schedule and fundamental filter
 from futures.macro.mcx_trading_timing_guide import MCXTradingSchedule
 from futures.macro.fundamental_filter import FundamentalFilter
+from futures.indicators.multi_timeframe_analyzer import MultiTimeframeAnalyzer
 
 
 @dataclass
@@ -106,6 +107,38 @@ class MasterScanner:
         self.opportunities = []
         self.mcx_schedule = MCXTradingSchedule()
         self.fundamental_filter = FundamentalFilter()
+        self.mtf_analyzer = MultiTimeframeAnalyzer()  # Multi-timeframe filter
+
+    def _check_multi_timeframe(self, symbol: str, direction: str) -> Dict:
+        """
+        Check multi-timeframe analysis before adding opportunity
+
+        Returns dict with:
+        - passes: bool (True if multi-TF analysis passes)
+        - score_adjustment: int (penalty to apply if issues found)
+        - warnings: list of warnings
+        """
+        try:
+            analysis = self.mtf_analyzer.analyze(symbol, direction, include_15min=False)
+
+            passes = analysis.is_safe_entry
+            score_adjustment = 0 if passes else -40  # Heavy penalty if fails
+            warnings = analysis.warnings
+
+            return {
+                'passes': passes,
+                'score_adjustment': score_adjustment,
+                'warnings': warnings,
+                'consensus_score': analysis.consensus_score
+            }
+        except Exception as e:
+            # If analysis fails, be conservative
+            return {
+                'passes': False,
+                'score_adjustment': -20,
+                'warnings': [f"Multi-TF analysis failed: {str(e)}"],
+                'consensus_score': 0
+            }
 
     def scan_macro_futures(self):
         """Scan macro opportunities"""
@@ -385,6 +418,73 @@ class MasterScanner:
                 opp.optimal_window = "N/A"
                 opp.wait_until = None
 
+    def apply_multi_timeframe_filter(self):
+        """Apply multi-timeframe analysis to MACRO opportunities only (not intraday)"""
+        print("\n🔍 Applying multi-timeframe filter to MACRO trades...")
+
+        checked_count = 0
+
+        for opp in self.opportunities:
+            # Only apply to MACRO and PAIR (not INTRADAY or STOCK)
+            if opp.category not in ['MACRO', 'PAIR']:
+                continue
+
+            # Get symbol for analysis
+            symbol = self._get_symbol_for_mtf(opp.instrument)
+
+            if symbol:
+                try:
+                    print(f"   Checking {opp.name}...", end=' ')
+
+                    # Run multi-timeframe check
+                    mtf_result = self.mtf_analyzer.analyze(symbol, opp.direction, include_15min=False)
+
+                    # Apply penalty if multi-TF fails
+                    if not mtf_result.is_safe_entry:
+                        penalty = 40
+                        old_score = opp.favorability_score
+                        opp.favorability_score = max(0, opp.favorability_score - penalty)
+
+                        print(f"❌ Failed ({old_score}→{opp.favorability_score})")
+
+                        # Add warnings
+                        if mtf_result.warnings:
+                            opp.disruption_factors.extend(mtf_result.warnings[:2])
+
+                        # Downgrade to Grade B
+                        if opp.quality_grade == "A" and opp.favorability_score < 60:
+                            opp.quality_grade = "B"
+                    else:
+                        print(f"✅ Passed")
+
+                    checked_count += 1
+
+                except Exception as e:
+                    print(f"⚠️ Error: {str(e)[:50]}")
+                    pass
+
+        print(f"   Multi-TF filter applied to {checked_count} macro trades")
+
+    def _get_symbol_for_mtf(self, instrument: str) -> Optional[str]:
+        """Map instrument name to yfinance symbol"""
+        mapping = {
+            'SILVER': 'SI=F',
+            'GOLD': 'GC=F',
+            'CRUDE': 'CL=F',
+            'NIFTY': '^NSEI',
+            'BANKNIFTY': '^NSEBANK',
+        }
+
+        for key, symbol in mapping.items():
+            if key in instrument.upper():
+                return symbol
+
+        # For stocks, likely already has .NS
+        if '.NS' in instrument:
+            return instrument
+
+        return None
+
     def rank_opportunities(self):
         """Rank all opportunities by composite score"""
 
@@ -571,6 +671,11 @@ def main():
     scanner.scan_intraday_stocks()  # NEW: Stock intraday Grade A signals
     scanner.scan_stocks()
     scanner.scan_pair_trades()
+
+    # Apply multi-timeframe filter (NEW!)
+    # TODO: Currently disabled - makes scans too slow (adds 2-3 min)
+    # Enable for final trade decisions only
+    # scanner.apply_multi_timeframe_filter()
 
     # Check MCX timing
     scanner.check_mcx_timing()
